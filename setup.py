@@ -11,9 +11,9 @@ setuptools.setup(
     description="Provides tools to preprocess nanopore amplicon reads more flexibly",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/xpli2020/NanoPrep.git",
     project_urls={
-        "Bug Tracker": "https://github.com/pypa/sampleproject/issues",
+        "Bug Tracker": "https://github.com/xpli2020/NanoPrep.git/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -21,5 +21,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(),
+    install_requires=["pandas"],
     python_requires=">=3.6",
 )
