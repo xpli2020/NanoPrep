@@ -421,7 +421,7 @@ def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", e
             read_mapping[sample_folder_path].append(barcode_path)
 
             seqRecord = SeqIO.parse(read, format= filetype) # this is a generator
-            with open(outputname, "w") as outf:
+            with open(barcode_path, "w") as outf:
                 for record in seqRecord:
                     record.id = header1 + "|" + record.id
                     seqs = record.seq 
