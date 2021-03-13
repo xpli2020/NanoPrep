@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nanoprep", # Replace with your own username
-    version="0.0.1",
+    version="0.0.3",
     author="Xiaoping Li",
     author_email="lixiaopi@vt.edu",
     description="Provides tools to preprocess nanopore amplicon reads more flexibly",
@@ -21,6 +21,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(),
-    install_requires=["pandas"],
+    install_requires=["pandas", "biopython"],
     python_requires=">=3.6",
 )
