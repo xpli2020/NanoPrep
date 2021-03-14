@@ -425,7 +425,7 @@ def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", e
                 for record in seqRecord:
                     record.id = header1 + "|" + record.id
                     seqs = record.seq 
-                    print(record.id, sep="", file=outf)
+                    print(">"+record.id, sep="", file=outf)
                     print(seqs, sep="", file=outf)
 
 
