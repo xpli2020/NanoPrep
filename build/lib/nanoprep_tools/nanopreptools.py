@@ -266,7 +266,7 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
 
                     if catchstdout:
                         
-                        stdout_name = xlabel + os.path.basename(read).split(".")[:-1] + "." + stdout_fmt
+                        stdout_name = xlabel + "".join(os.path.basename(read).split(".")[:-1]) + "." + stdout_fmt
                         stdout_file_path = os.path.join(sample_out, stdout_name)
                         print(f"Catching stdout in {stdout_file_path}")
                         with open(stdout_file_path, "w") as stdoutf:
