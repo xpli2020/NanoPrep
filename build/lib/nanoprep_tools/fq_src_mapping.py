@@ -7,54 +7,31 @@ from collections import defaultdict
 
 
 
-def makemapfile(fq_file_directory, subdir_contains_fq="fastq_pass", out="mapping.txt"):
+def makemapfile(fq_file_directory, outfile="mapping.txt", filter=False, filtertype="fastq"):
 
-    subfolders = []
-    reads = []
-    fq_file_directory = os.path.abspath(fq_file_directory)
     
-    sub = False
-    for i, _, _ in os.walk(fq_file_directory):
-        if subdir_contains_fq in i:
-            sub = True
-            updir = os.path.basename(os.path.dirname(i))            
-            for j in os.listdir(i):
-                if j.endswith(("fq", "fastq", "fastq.gz")):
-                    subfolders.append(updir)
-                    reads.append(os.path.join(i, j))
+    fq_file_directory = os.path.abspath(fq_file_directory)
+    newfile_dict = defaultdict(list)
 
-                if j.endswith(("fa", "fasta", "fasta.gz", "fna", "fna.gz", "fa.gz")):
-                    subfolders.append(updir)
-                    reads.append(os.path.join(i, j))
-    if not sub:
-        sub_folders = os.listdir(fq_file_directory)
-        
-        for i in sub_folders:
-        
-            if os.path.isdir(i):
-                sub_reads = os.listdir(os.path.join(fq_file_directory, i))
-                sample_name = i
-                for j in sub_reads:
+    listOfFiles = list()
+    for (dirpath, dirnames, filenames) in os.walk(fq_file_directory):
+        listOfFiles += [os.path.join(dirpath, file) for file in filenames]
 
-                    if j.endswith(("fq", "fastq", "fastq.gz")):
-                        subfolders.append(sample_name)
-                        reads.append(os.path.join(fq_file_directory, i, j))
+    for i in listOfFiles:
+        dirname = os.path.dirname(i)
+        newfile_dict[dirname].append(i)
 
-                    if j.endswith(("fa", "fasta", "fasta.gz", "fna", "fna.gz", "fa.gz")):
-                        subfolders.append(sample_name)
-                        reads.append(os.path.join(fq_file_directory, i, j))
-            else:
-                subfolders.append(fq_file_directory)
-                if i.endswith(("fq", "fastq", "fastq.gz")):
-                    reads.append(os.path.join(fq_file_directory, i))
-                if i.endswith(("fa", "fasta", "fasta.gz", "fna", "fna.gz", "fa.gz")):
-                    reads.append(os.path.join(fq_file_directory, i))                  
 
-    df = pd.DataFrame({"Sample":subfolders, "Read_path":reads})
+    with open(outfile, "w") as outf:
+        for k, v_list in newfile_dict.items():
+            for v in v_list:
+                if filter:
+                    if v.split(".")[-1] == filtertype:
+                        print(k, v, sep="\t", file=outf)
+                else:
+                    print(k, v, sep="\t", file=outf)
 
-    df.to_csv(out, sep="\t", header=None, index=None)
-
-    return df
+    return newfile_dict
 
     
 if __name__ == "__main__":
@@ -62,24 +39,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-fqdir', dest="fqdir", help="fq file directory")
     parser.add_argument('-out', dest="out", default="mapping.txt", help="mapping file name out")
-    # parser.add_argument('-suffix', dest="suffix", default="fastq")
-    parser.add_argument('-subdir', dest="subdir", default="fastq_pass", help="subfolder name that contains fastq reads")
-    parser.add_argument('--showdf', dest="showdf", action="store_true", help="if want to show df in standardou")
+    parser.add_argument('-filter', dest="filter", action="store_true", help="if filter file")
+    parser.add_argument('-ftype', dest="ftype", default="fastq", help="file type")
 
     args = parser.parse_args()
 
     fqdir = args.fqdir
     out = args.out
-    # suf = args.suffix
-    subdir = args.subdir
-    showdf = args.showdf
-
-    if showdf:
-        df = makemapfile(fqdir, subdir, out)
-        print(df.head())
-
-    else:
-        makemapfile(fqdir, subdir, out)
+    fil = args.filter
+    ftype = args.ftype
+    
+    df = makemapfile(fqdir, out, fil, ftype)
 
 
 

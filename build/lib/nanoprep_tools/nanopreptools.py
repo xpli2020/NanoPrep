@@ -189,13 +189,20 @@ def nano_concat(sample_read_dict, mergeby="Sample", output="Concat_reads", filet
 
 
 
-def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputflag="-o", outfolder=None, outfolder_suffix="out", forceout = False, stdin = False, xlabel="", suffix_change=False, outfmt="", exist_ok=True):
+def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputflag="-o", outfolder=None, outfolder_suffix="out", forceout = False, stdin = False, xlabel="", suffix_change=False, outfmt="", exist_ok=True, switchinput_output=False, catchstdout=False, stdout_fmt=""):
     """Demultiplex with qcat or porechop
 
     Args:
         sample_read_dict ([type]): [description]
         method (str, optional): [description]. Defaults to "qcat".
         forceout: if the program do not create out file, you can set it to True
+        stdin: standard in format: load options first
+        suffix_change: change file type
+        outfmt: output format to change to
+        exist_ok: if override existing folder
+        switchinput_output: some program where stdin is the last command
+        catchstdout: if to catch stdout in a file, stdout file name will be the same as output name, except for the suffix, you can change it with stdout_fmt
+        stdout_fmt: what file type you want to store stdout
 
     Returns:
         defaultdict list: with folder:[files]
@@ -242,8 +249,13 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
                         read_label = xlabel + "".join(os.path.basename(read).split(".")[:-1]) +outfmt
                     else:
                         read_label = xlabel + os.path.basename(read)
+
                     read_label_path = os.path.join(sample_out, read_label)
-                    basecommand.extend([inputflag, read, outputflag, read_label_path])
+
+                    if switchinput_output:
+                        basecommand.extend([outputflag, read_label_path, inputflag, read])
+                    else:
+                        basecommand.extend([inputflag, read, outputflag, read_label_path])
                     
                     new_command = " ".join(basecommand)
                     
@@ -251,10 +263,22 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
                     print(f">>Input: {read}")
                     print(f">>Output: {sample_out}")
                     print(f"[ Command: {new_command} ]")
-            
-                    subprocess.run(new_command, shell=True)
-                else:
 
+                    if catchstdout:
+                        
+                        stdout_name = xlabel + os.path.basename(read).split(".")[:-1] + "." + stdout_fmt
+                        stdout_file_path = os.path.join(sample_out, stdout_name)
+                        print(f"Catching stdout in {stdout_file_path}")
+                        with open(stdout_file_path, "w") as stdoutf:
+                            subprocess.run(new_command, shell=True, stdout=stdoutf)
+
+
+                    else:
+                        subprocess.run(new_command, shell=True)
+
+
+                else:
+                    # when the program generates folder for you: sample out
                     basecommand = [method, inputflag, read, outputflag, sample_out]
                     basecommand.append(*args)
                     
@@ -421,11 +445,11 @@ def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", e
             read_mapping[sample_folder_path].append(barcode_path)
 
             seqRecord = SeqIO.parse(read, format= filetype) # this is a generator
-            with open(outputname, "w") as outf:
+            with open(barcode_path, "w") as outf:
                 for record in seqRecord:
                     record.id = header1 + "|" + record.id
                     seqs = record.seq 
-                    print(record.id, sep="", file=outf)
+                    print(">"+record.id, sep="", file=outf)
                     print(seqs, sep="", file=outf)
 
 
