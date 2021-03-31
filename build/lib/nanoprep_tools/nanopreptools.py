@@ -110,11 +110,13 @@ def nano_copysource(mapping, OUTPUT="copied_fastq_reads", exist_ok=False):
 
     fastq_source = pd.read_csv(mapping, sep="\t", names=["Sample", "Read_path"], header=None)
     print(f"Total reads from source {fastq_source.shape[0]}")
+
+
     # add summary report
     raw_read = defaultdict(list)
     for row, content in fastq_source.iterrows():
 
-        sam = os.path.join(root_dir, content["Sample"])
+        sam = os.path.join(root_dir, os.path.basename(content["Sample"]))
         read_from = content["Read_path"]
         if os.path.exists(read_from):
             read_to = os.path.join(sam, os.path.basename(read_from))
@@ -270,12 +272,12 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
                         stdout_file_path = os.path.join(sample_out, stdout_name)
                         print(f"Catching stdout in {stdout_file_path}")
                         with open(stdout_file_path, "w") as stdoutf:
-                            subprocess.run(new_command, shell=True, stdout=stdoutf)
-
+                            Result = subprocess.run(new_command, shell=True, stdout=stdoutf, stderr=subprocess.PIPE)
 
                     else:
-                        subprocess.run(new_command, shell=True)
+                        Result = subprocess.run(new_command, shell=True, stderr=subprocess.PIPE)
 
+                    print(Result.stderr)
 
                 else:
                     # when the program generates folder for you: sample out
@@ -289,7 +291,8 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
                     print(f">>Output: {sample_out}")
                     print(f"[ Command: {new_command} ]")
             
-                    subprocess.run(new_command, shell=True)
+                    Result = subprocess.run(new_command, shell=True, stderr=subprocess.PIPE)
+                    print(Result.stderr)
 
             outlist = os.listdir(sample_out)
             for i in outlist:
@@ -454,3 +457,35 @@ def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", e
 
 
     return read_mapping
+
+
+
+def nano_krakenReport(sample_read_dict, saveSummary="classfication_summary.txt"):
+    """A summary of classfied and unclassifed reads all together
+    """
+    
+    classified = "C"
+    unclassified = "U"
+
+    classified_count = 0
+    unclassified_count = 0
+    total_count = 0
+
+
+    with open(saveSummary, "w") as su:
+        print("Sample", "Kraken_file", "Total", "Classified", "Unclassified", "Classified_perc", "Unclassified_perc", sep="\t", file=su)
+        for sample, files in sample_read_dict.items():
+            for f in files:
+                df = pd.read_csv(f, sep="\t", header=None, names=["V0", "V1", "V2", "V3", "V4"])
+
+                n_classified =  sum(df["V0"] == classified)
+                n_unclassified = sum(df["V0"] == unclassified)
+                total_n = df.shape[0]
+
+                classified_count += n_classified
+                unclassified_count += n_unclassified
+                total_count += total_n
+                print(f"{os.path.basename(sample)}", f"{os.path.basename(f)}", f"{total_n}", f"{n_classified}", f"{n_unclassified}", f"{100*n_classified/total_n:.4f}", f"{100*n_unclassified/total_n:.4f}",sep="\t", file=su)
+
+
+        print(f"Total", f"all_files", f"{total_count}", f"{classified_count}", f"{unclassified_count}", f"{100*classified_count/total_count:.4f}", f"{100*unclassified_count/total_count:.4f}",sep="\t", file=su)
