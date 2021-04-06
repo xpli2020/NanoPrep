@@ -409,6 +409,32 @@ def nano_filterBC(sample_read_dict, guide_file, copy = True, sampleCOL="Samples_
 #################################################################
 
 # nano_fish() - separate mixed libraries?
+def process(lines=None):
+    ks = ["name", "sequence", "optional", "quality"]
+    return {k:v for k, v in zip(ks, lines)}
+
+def changeFastqHeader(fastq, newrecordname=None, n=4, out="changeFastqHeader.fastq"):
+
+    with open(out, "w") as out:
+        with open(fastq, "r") as fh:
+            lines = []
+            for line in fh:
+                lines.append(line.rstrip())
+                if len(lines) == n:
+                    record = process(lines)
+                    if newrecordname is not None:
+                        record_id = record["name"].split()[0]
+                        newheader = newrecordname + "|" + record_id
+                        record["name"] = newheader
+
+                    print(record["name"], sep="", file=out)
+                    print(record["sequence"], sep="", file=out)
+                    print(record["optional"], sep="", file=out)
+                    print(record["quality"], sep="", file=out)
+                    lines = []
+
+    
+
 
 
 def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", exist_ok=True):
@@ -447,14 +473,17 @@ def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", e
 
             read_mapping[sample_folder_path].append(barcode_path)
 
-            seqRecord = SeqIO.parse(read, format= filetype) # this is a generator
-            with open(barcode_path, "w") as outf:
-                for record in seqRecord:
-                    record.id = header1 + "|" + record.id
-                    seqs = record.seq 
-                    print(">"+record.id, sep="", file=outf)
-                    print(seqs, sep="", file=outf)
+            if filetype in ["fasta","fa", "fna"]:
+                seqRecord = SeqIO.parse(read, format= filetype) # this is a generator
+                with open(barcode_path, "w") as outf:
+                    for record in seqRecord:
+                        record.id = header1 + "|" + record.id
+                        seqs = record.seq 
+                        print(">"+record.id, sep="", file=outf)
+                        print(seqs, sep="", file=outf)
 
+            elif filetype in ["fastq", "fq"]:
+                changeFastqHeader(read, newrecordname=header1, out=barcode_path)
 
     return read_mapping
 
