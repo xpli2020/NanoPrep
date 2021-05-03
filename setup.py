@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nanoprep", # Replace with your own username
-    version="0.1.0",
+    version="0.1.3",
     author="Xiaoping Li",
     author_email="lixiaopi@vt.edu",
     description="Provides tools to preprocess nanopore amplicon reads more flexibly",

@@ -108,8 +108,11 @@ def nano_copysource(mapping, OUTPUT="copied_fastq_reads", exist_ok=False):
     os.makedirs(OUTPUT, exist_ok=exist_ok)
     root_dir = os.path.abspath(OUTPUT)
 
-    fastq_source = pd.read_csv(mapping, sep="\t", names=["Sample", "Read_path"], header=None)
-    print(f"Total reads from source {fastq_source.shape[0]}")
+    if type(mapping) == "collections.defaultdict":
+        fastq_source = mapping
+    else:
+        fastq_source = pd.read_csv(mapping, sep="\t", names=["Sample", "Read_path"], header=None)
+        print(f"Total reads from source {fastq_source.shape[0]}")
 
 
     # add summary report
@@ -168,7 +171,7 @@ def nano_concat(sample_read_dict, mergeby="Sample", output="Concat_reads", filet
             # resolve arguments too long eror with cat
             uplevelfrom = os.path.dirname(reads[0]) 
             print(f"//Find files from source: {uplevelfrom}")
-            command = " ".join(["cat", f"{uplevelfrom}/*", ">", outread_path])
+            command = " ".join(["cat", f"{uplevelfrom}/*.{filetype}", ">", outread_path])
             print(command)
             print("\n")
             subprocess.run(command, shell=True)
@@ -176,7 +179,7 @@ def nano_concat(sample_read_dict, mergeby="Sample", output="Concat_reads", filet
     elif mergeby == "All":
         print("Concat all reads...")
         all_reads = [ j for i in sample_read_dict.values() for j in i]
-        all_reads_upper = { os.path.dirname(i)+"/*" for i in all_reads }
+        all_reads_upper = { os.path.dirname(i)+f"/*.{filetype}" for i in all_reads }
         outread = "all_concat_reads"+"."+filetype
         outread_path = os.path.join(out, outread)
         read_mapping[out].append(outread_path)
@@ -190,8 +193,7 @@ def nano_concat(sample_read_dict, mergeby="Sample", output="Concat_reads", filet
     return read_mapping
 
 
-
-def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputflag="-o", outfolder=None, outfolder_suffix="out", forceout = False, stdin = False, xlabel="", suffix_change=False, outfmt="", exist_ok=True, switchinput_output=False, catchstdout=False, stdout_fmt=""):
+def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputflag="-o",outfolder=None, outfolder_suffix="out", forceout = False, stdin = False, xlabel="", suffix_change=False, outfmt="", exist_ok=True, switchinput_output=False, catchstdout=False, stdout_fmt=""):
     """Demultiplex with qcat or porechop
 
     Args:
@@ -409,6 +411,7 @@ def nano_filterBC(sample_read_dict, guide_file, copy = True, sampleCOL="Samples_
 #################################################################
 
 # nano_fish() - separate mixed libraries?
+
 def process(lines=None):
     ks = ["name", "sequence", "optional", "quality"]
     return {k:v for k, v in zip(ks, lines)}
@@ -418,6 +421,7 @@ def changeFastqHeader(fastq, newrecordname=None, n=4, out="changeFastqHeader.fas
     with open(out, "w") as out:
         with open(fastq, "r") as fh:
             lines = []
+            print(f"Opening {fastq}")
             for line in fh:
                 lines.append(line.rstrip())
                 if len(lines) == n:
@@ -427,18 +431,25 @@ def changeFastqHeader(fastq, newrecordname=None, n=4, out="changeFastqHeader.fas
                         newheader = newrecordname + "|" + record_id
                         record["name"] = newheader
 
-                    print(record["name"], sep="", file=out)
+                    print("@"+record["name"], sep="", file=out)
                     print(record["sequence"], sep="", file=out)
                     print(record["optional"], sep="", file=out)
                     print(record["quality"], sep="", file=out)
                     lines = []
 
-    
-
 
 
 def nano_modiheader(sample_read_dict, filetype="fasta", out="Modified_header", exist_ok=True):
-    
+    """Modify read name to SampleID|BC|readid
+
+    Args:
+        sample_read_dict ([type]): [description]
+        filetype (str, optional): [description]. Defaults to "fasta".
+        out (str, optional): [description]. Defaults to "Modified_header".
+        exist_ok (bool, optional): [description]. Defaults to True.
+    """
+
+
     assert type(sample_read_dict) == defaultdict, "input is a python dictionary with {sample:path, ...}"
 
     os.makedirs(out, exist_ok=exist_ok)
