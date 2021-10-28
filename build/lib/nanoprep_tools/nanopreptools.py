@@ -119,7 +119,7 @@ def nano_groupreads(mapping, OUTPUT="Grouped_reads", groupfile=None, keepSubdir=
 
     # moved_reads : {"path/barcode01":[...]}
 
-    groupGuide = pd.read_csv(groupfile, sep="\t", names=["SampleID", "Barcodes", "Group"])
+    groupGuide = pd.read_csv(groupfile, sep="\t", header=0, names=["SampleID", "Barcodes", "Group"])
     # get unique groups
     # {16S: [barcode01, barcode02, ...]}
     GRPs = defaultdict(list)
