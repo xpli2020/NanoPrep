@@ -95,7 +95,108 @@ def nano_map2dict(mapping, sep="\t", header = None):
 
     return read_mapping
 
+def nano_groupreads(mapping, OUTPUT="Grouped_reads", groupfile=None, keepSubdir=False, changeName=True, changePrefix="", exist_OK = False):
+    """This function is used to group reads, i.e 16S and ITS by the groupfile, or change folder and read names if necessary
 
+    Args:
+        mapping ([type]): [description]
+        OUTPUT (str, optional): [description]. Defaults to "grouped_reads".
+        groupfile ([type], optional): [provide a tab file to specify groups, need "GROUP" column and "SampleID" should match to the mapping input keys]. Defaults to None
+        keepSubdir (Boolean): if keep the orginial subfolders, or put sub files together by group
+        changeName: change folder name and file name
+        changePrefix: add prefix to folder name and file name
+    """
+    # move files first -> then classify to groups
+
+    os.makedirs(OUTPUT, exist_ok=exist_OK)
+    root_dir = os.path.abspath(OUTPUT)
+
+
+    # add summary report
+    raw_read = defaultdict(list)
+
+    moved_reads = nano_copysource(mapping, OUTPUT=OUTPUT, exist_ok=True)
+
+    # moved_reads : {"path/barcode01":[...]}
+
+    groupGuide = pd.read_csv(groupfile, sep="\t", names=["SampleID", "Barcodes", "Group"])
+    # get unique groups
+    # {16S: [barcode01, barcode02, ...]}
+    GRPs = defaultdict(list)
+    for row, content in groupGuide.iterrows():
+        GRPs[content["Group"]].append(str(content["Barcodes"])+"_"+str(content["SampleID"]))
+
+    
+    # make subfolders by group
+    for k, v in GRPs.items():
+        # k: group i.e. 16S or ITS
+        # v: barcode_sampleID
+        if not os.path.exists(k):
+            # make group subfoler
+            sam = os.path.join(root_dir, os.path.basename(k))
+            os.makedirs(sam)
+            
+        # extract barcode and sampleID
+        for j in v:
+            
+            b_s = j.split("_")
+            bar = b_s[0]
+            sampleid = b_s[1]
+            
+            # match with moved_reads
+            path_moved = os.path.join(root_dir, bar)
+            reads_need_moving = moved_reads[path_moved] # a list of files with absolute path
+            
+            for mread in reads_need_moving:
+            
+                # if keepsubdir
+                print("\n......keeping sub folders ......\n")
+                if keepSubdir:
+                    # make sub folder under each group folder
+                    if changeName: # change subfolder name
+                        print("\n...rename sub folders and files...\n")
+                        new_name =changePrefix+sampleid+"_"+bar
+                        sub_sam = os.path.join(sam, new_name)
+                        chgn_read = os.path.join(sub_sam, new_name+"."+os.path.basename(mread).split(".")[1])
+                    else:
+                        sub_sam = os.path.join(sam, bar)
+                        chgn_read = os.path.join(sub_sam, os.path.basename(mread))
+
+                    if not os.path.exists(sub_sam): # create sub folders
+                        os.makedirs(sub_sam, exist_ok=exist_OK)
+                        
+                        
+                    # now move the reads
+                    raw_read[sub_sam].append(chgn_read)
+                    print("\n.Grouping.\n")
+                    command = " ".join(["cp", mread, chgn_read])
+                    subprocess.run(command, shell=True)
+                    
+                    
+
+                else: # not keepsubdir
+                    print("\n......Not keeping sub folders ......\n")
+                    if changeName: # change subfolder name
+                        new_name =changePrefix+sampleid+"_"+bar
+                        chgn_read = os.path.join(sam, new_name+"."+os.path.basename(mread).split(".")[1])
+                    else:
+                        chgn_read = os.path.join(sam, os.path.basename(mread))
+                                        # now move the reads
+                            
+                    raw_read[sam].append(chgn_read)
+                    print("\n.Grouping.\n")
+                    command = " ".join(["cp", mread, chgn_read])
+                    subprocess.run(command, shell=True)
+
+
+    # remove the copied file to save space
+    print("!!remove copied reads to save space\n")
+    for i in moved_reads.keys():
+        command = " ".join(["rm", i, "-rf"])
+        subprocess.run(command, shell=True)
+
+
+    return raw_read
 
 def nano_copysource(mapping, OUTPUT="copied_fastq_reads", exist_ok=False):
     """Copy source fastq files to current working direction, to avoid mess up original files
@@ -108,33 +209,55 @@ def nano_copysource(mapping, OUTPUT="copied_fastq_reads", exist_ok=False):
     os.makedirs(OUTPUT, exist_ok=exist_ok)
     root_dir = os.path.abspath(OUTPUT)
 
-    if type(mapping) == "collections.defaultdict":
+    # add summary report
+    raw_read = defaultdict(list)
+
+    if type(mapping) == defaultdict:
+
         fastq_source = mapping
+
+        for k, v in fastq_source.items():
+            for j in v:
+                sam = os.path.join(root_dir, os.path.basename(k))
+                read_from = j
+
+                if os.path.exists(read_from):
+                    read_to = os.path.join(sam, os.path.basename(read_from))
+                    print(f"\nCopying  sample {read_from} to working directory {sam}")
+                else:
+                    print("read path does not exist")
+                    return "read path does not exist"
+
+                if not os.path.exists(sam):
+                    os.makedirs(sam)
+
+                raw_read[sam].append(read_to)
+                command = " ".join(["cp", read_from, read_to])
+                subprocess.run(command, shell=True)
+            
+
     else:
         fastq_source = pd.read_csv(mapping, sep="\t", names=["Sample", "Read_path"], header=None)
         print(f"Total reads from source {fastq_source.shape[0]}")
 
+        for row, content in fastq_source.iterrows():
 
-    # add summary report
-    raw_read = defaultdict(list)
-    for row, content in fastq_source.iterrows():
+            sam = os.path.join(root_dir, os.path.basename(content["Sample"]))
+            read_from = content["Read_path"]
+            if os.path.exists(read_from):
+                read_to = os.path.join(sam, os.path.basename(read_from))
+                print(f"\n{row} Copying  sample {read_from} to working directory {sam}")
+            else:
+                print("read path does not exist")
+                return "read path does not exist"
 
-        sam = os.path.join(root_dir, os.path.basename(content["Sample"]))
-        read_from = content["Read_path"]
-        if os.path.exists(read_from):
-            read_to = os.path.join(sam, os.path.basename(read_from))
-            print(f"\n{row} Copying  sample {read_from} to working directory {sam}")
-        else:
-            print("read path does not exist")
-            return "read path does not exist"
+            if not os.path.exists(sam):
+                os.makedirs(sam)
 
-        if not os.path.exists(sam):
-            os.makedirs(sam)
-
-        raw_read[sam].append(read_to)
-        command = " ".join(["cp", read_from, read_to])
-        subprocess.run(command, shell=True)
-        
+            raw_read[sam].append(read_to)
+            command = " ".join(["cp", read_from, read_to])
+            subprocess.run(command, shell=True)
+            
     print("Completed")
     return raw_read
 
@@ -200,11 +323,12 @@ def nano_runProg(sample_read_dict, *args, method="qcat", inputflag="-f", outputf
         sample_read_dict ([type]): [description]
         method (str, optional): [description]. Defaults to "qcat".
         forceout: if the program do not create out file, you can set it to True
-        stdin: standard in format: load options first
+        stdin: standard in format: load options first, default false
         suffix_change: change file type
         outfmt: output format to change to
         exist_ok: if override existing folder
         switchinput_output: some program where stdin is the last command
+        xlabel: change name on the output file
         catchstdout: if to catch stdout in a file, stdout file name will be the same as output name, except for the suffix, you can change it with stdout_fmt
         stdout_fmt: what file type you want to store stdout
 
